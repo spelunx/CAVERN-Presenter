@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAVERN Slide Doubler</title>
+    <style>
+        html {
+            background-color: black;
+        }
+
+        body {
+            background-color: black;
+            color: #eeeeee;
+            margin: 0;
+        }
+
+        #hideOnFullscreen {
+            margin: 10px;
+        }
+
+        #hideOnFullscreen div {
+            margin-top: 10px;
+        }
+    </style>
+    <script type="module" src="./index.js"></script>
+</head>
+
+<body>
+    <div id="hideOnFullscreen">
+        <input type="file" id="file-selector" accept=".pdf" />
+        <button id="present">Present</button>
+        <button id="convert">Convert and Download</button>
+        <div>
+            Drag and drop a pdf onto this page, or use the input selector
+        </div>
+    </div>
+    <canvas id="showOnFullscreen" hidden>
+    </canvas>
+</body>
+
+</html>
