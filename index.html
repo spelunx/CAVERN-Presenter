@@ -29,11 +29,16 @@
 
 <body>
     <div id="hideOnFullscreen">
-        <input type="file" id="file-selector" accept=".pdf" />
-        <button id="present">Present</button>
-        <button id="convert">Convert and Download</button>
-        <div>
+        <input type="file" id="file-selector" accept=".pdf" class="hideOnConvert"/>
+        <button id="present" class="hideOnConvert">Present</button>
+        <button id="convert" class="hideOnConvert">Convert and Download</button>
+        <span class="hideOnConvert">Background color: <input type="color" id="background-color" value="#000000"/></span>
+        <div class="hideOnConvert">
             Drag and drop a pdf onto this page, or use the input selector
+        </div>
+        <div class="showOnConvert" hidden>
+            Converting and downloading pdf:
+            <progress id="progress-bar" max="100" value="0">0%</progress>
         </div>
     </div>
     <canvas id="showOnFullscreen" hidden>

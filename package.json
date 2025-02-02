@@ -3,8 +3,9 @@
     "start": "vite",
     "build": "vite build"
   },
+  "postinstall": "bunx patch-package",
   "dependencies": {
-    "jspdf": "^2.5.2",
+    "jspdf": "2.5.1",
     "pdfjs-dist": "^4.10.38"
   },
   "devDependencies": {

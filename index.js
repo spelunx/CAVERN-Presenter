@@ -9,6 +9,7 @@ const cavern_height = 2160;
 let pdf = undefined;
 let filename = "";
 let pageNum = 1;
+let converting = false;
 try {
   if (typeof window === "undefined" || !("Worker" in window)) {
     throw new Error("Web Workers not supported in this environment.");
@@ -74,6 +75,7 @@ async function renderSlide(pageNum) {
   let scaledViewport = page.getViewport({ scale: scale });
   let canvas = document.getElementById("showOnFullscreen");
   let context = canvas.getContext("2d");
+  let backgroundColor = document.getElementById("background-color").value;
 
   // match canvas dimensions to cavern dimensions
   canvas.width = cavern_width;
@@ -94,7 +96,7 @@ async function renderSlide(pageNum) {
     canvasContext: context,
     transform: transform_top,
     viewport: scaledViewport,
-    background: "black",
+    background: backgroundColor,
   };
   // render the page to the top half of the canvas
   await page.render(renderContext).promise;
@@ -112,94 +114,150 @@ async function renderSlide(pageNum) {
   );
 }
 
-// saving is broken for now
+async function renderSlideNoBorder(pageNum) {
+  let page = await pdf.getPage(pageNum);
+  let viewport = page.getViewport({ scale: 1 });
+  let scale = cavern_height / 2 / viewport.height;
+  let scaledViewport = page.getViewport({ scale: scale });
+  let canvas = document.getElementById("showOnFullscreen");
+  let context = canvas.getContext("2d");
+  let backgroundColor = document.getElementById("background-color").value;
+
+  // match canvas dimensions to cavern dimensions
+  canvas.width = scaledViewport.width;
+  canvas.height = cavern_height;
+  canvas.style.width = scaledViewport.width + "px";
+  canvas.style.height = cavern_height + "px";
+
+  var renderContext = {
+    canvasContext: context,
+    viewport: scaledViewport,
+    background: backgroundColor,
+  };
+  // render the page to the top half of the canvas
+  await page.render(renderContext).promise;
+  // copy the top half to the bottom half
+  context.drawImage(
+    canvas,
+    0,
+    0,
+    scaledViewport.width,
+    scaledViewport.height,
+    0,
+    scaledViewport.height,
+    scaledViewport.width,
+    scaledViewport.height
+  );
+  return scaledViewport.width;
+}
+
 async function convert() {
-  // return;
+  // create a new pdf
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "px",
     format: [cavern_width, cavern_height],
+    compress: true,
   });
 
+  const progressBar = document.getElementById("progress-bar");
+  progressBar.value = 0;
+  progressBar.innerText = "0%";
+  let image = document.getElementById("showOnFullscreen");
+  let backgroundColor = document.getElementById("background-color").value;
+  // render each page and add it to the pdf
   for (let i = 1; i <= pdf._pdfInfo.numPages; i++) {
-    await renderSlide(i);
-    // let image = document.getElementById("canvas").toDataURL("image/png");
-    let image = document.getElementById("showOnFullscreen");
-    doc.addImage(image, "PNG", 0, 0, cavern_width, cavern_height);
+    // await renderSlide(i);
+    // doc.addImage(image, "PNG", 0, 0, cavern_width, cavern_height);
+
+    // render smaller canvas + background color to reduce file size
+    let im_width = await renderSlideNoBorder(i);
+    doc
+      .setFillColor(backgroundColor)
+      .rect(0, 0, cavern_width, cavern_height, "F");
+    doc.addImage(
+      image,
+      "PNG",
+      cavern_width / 2 - im_width / 2,
+      0,
+      im_width,
+      cavern_height
+    );
     if (i != pdf._pdfInfo.numPages) {
       doc.addPage();
     }
+    progressBar.value = (i / pdf._pdfInfo.numPages) * 100;
+    progressBar.innerText = `${((i / pdf._pdfInfo.numPages) * 100).toFixed(
+      1
+    )}%`;
   }
 
+  // figure out the filename to use
   const lastIndex = filename?.lastIndexOf(".") ?? -1;
   let new_filename = "cavern_presentation.pdf";
   if (filename && lastIndex !== -1) {
     new_filename = filename.substring(0, lastIndex) + "_cavernDoubled.pdf";
   }
-  // doc.save(new_filename);
-  // can't just use doc.save because the file is too big
-  // and overflows the javascript string limit
-  let chunks = doc.output("arrayBuffer", new_filename);
-  console.log(chunks[0]);
-  return;
-  const data = chunks.map((chunk) =>
-    Uint8Array.from(chunk, (x) => x.charCodeAt(0))
-  );
-  const blob = new Blob(data);
-  // const chunk = pdfOutput.shift();
-  //   if (chunk) {
-  //     // convert string to bytes to keep PDF ascii encoding
-  //     // if we don't do this the PDF will break and show blank
-  //     this.push(Uint8Array.from(chunk, (x) => x.charCodeAt(0)));
-  //   } else {
-  //     this.push(null);
-  //   }
-  // const blob = new Blob(const chunk = pdfOutput.shift();
-  //   if (chunk) {
-  //     // convert string to bytes to keep PDF ascii encoding
-  //     // if we don't do this the PDF will break and show blank
-  //     this.push(Uint8Array.from(chunk, (x) => x.charCodeAt(0)));
-  //   } else {
-  //     this.push(null);
-  //   })
 
-  // doc.__private__.resetCustomOutputDestination();
-  // const content = doc.__private__.out("");
-  // content.pop();
-  // // const blob = doc.output("blob", new_filename);
-  // // blob.type = "application/pdf";
-  // const blob = new Blob(
-  //   content.map((line, idx) => {
-  //     const str = idx === content.length - 1 ? line : line + "\n";
-  //     const arrayBuffer = new ArrayBuffer(str.length);
-  //     const uint8Array = new Uint8Array(arrayBuffer);
-  //     for (let i = 0; i < str.length; ++i) {
-  //       uint8Array[i] = str.charCodeAt(i);
-  //     }
-  //     return arrayBuffer;
-  //   }),
-  //   { type: "application/pdf" }
-  // );
+  // convert the pdf to a blob to be downloaded
+  let start = Date.now();
+  console.log(start);
+  const pdfOutput = doc.output("stringArray");
+  const newBlob = new Blob(
+    pdfOutput.map((chunk) => Uint8Array.from(chunk, (x) => x.charCodeAt(0))),
+    { type: "application/pdf" }
+  );
+  let end = Date.now();
+  console.log(end);
+  console.log(end - start);
+
+  // download the pdf
   const a = document.createElement("a");
   a.download = new_filename;
   a.rel = "noopener";
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(newBlob);
   a.click();
+  a.remove();
+  URL.revokeObjectURL(newBlob);
 }
 
 document.addEventListener("fullscreenchange", fullscreenCheck);
 document.getElementById("file-selector").onchange = function (e) {
+  if (converting) return;
   const fileList = e.target.files;
   loadFile(fileList[0]);
 };
-document.getElementById("present").onclick = presentFullScreen;
-document.getElementById("convert").onclick = convert;
+document.getElementById("present").onclick = () => {
+  if (converting) return;
+  presentFullScreen();
+};
+document.getElementById("convert").onclick = async () => {
+  if (converting) return;
+  converting = true;
+  const showOnConvert = document.getElementsByClassName("showOnConvert");
+  const hideOnConvert = document.getElementsByClassName("hideOnConvert");
+  for (let item of showOnConvert) {
+    item.hidden = false;
+  }
+  for (let item of hideOnConvert) {
+    item.hidden = true;
+  }
+  await convert();
+  for (let item of showOnConvert) {
+    item.hidden = true;
+  }
+  for (let item of hideOnConvert) {
+    item.hidden = false;
+  }
+  converting = false;
+};
 // document.body.onload = fullscreenCheck;
 
 document.addEventListener("keydown", function (event) {
   if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
     event.preventDefault();
     event.stopPropagation();
+    if (converting) return;
     prevPage();
   } else if (
     event.key === "ArrowDown" ||
@@ -209,6 +267,7 @@ document.addEventListener("keydown", function (event) {
   ) {
     event.preventDefault();
     event.stopPropagation();
+    if (converting) return;
     nextPage();
   }
 });
@@ -216,6 +275,7 @@ document.addEventListener("keydown", function (event) {
 document.addEventListener("drop", function (e) {
   e.preventDefault();
   e.stopPropagation();
+  if (converting) return;
   document.getElementById("file-selector").files = e.dataTransfer.files;
   loadFile(e.dataTransfer.files[0]);
   // if (e.dataTransfer.items && e.dataTransfer.items.length != 0) {
