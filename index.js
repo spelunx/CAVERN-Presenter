@@ -1,5 +1,5 @@
-import * as pdfjs from "pdfjs-dist/build/pdf";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
+import { GlobalWorkerOptions, getDocument } from "pdfjs-dist/build/pdf";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min?url";
 import { jsPDF } from "jspdf";
 
 // 5,760 x 2,160 is size of cavern, with height doubled so the image appears twice
@@ -16,7 +16,7 @@ try {
   }
 
   window.pdfjsWorker = pdfjsWorker;
-  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+  GlobalWorkerOptions.workerSrc = pdfjsWorker;
 } catch (error) {
   console.log(error);
 }
@@ -26,7 +26,7 @@ function loadFile(f) {
   let reader = new FileReader();
   reader.onload = async function () {
     let typedarray = new Uint8Array(this.result);
-    const loadingTask = pdfjs.getDocument(typedarray);
+    const loadingTask = getDocument(typedarray);
     pdf = await loadingTask.promise;
   };
   reader.readAsArrayBuffer(f);
@@ -200,16 +200,11 @@ async function convert() {
   }
 
   // convert the pdf to a blob to be downloaded
-  let start = Date.now();
-  console.log(start);
   const pdfOutput = doc.output("stringArray");
   const newBlob = new Blob(
     pdfOutput.map((chunk) => Uint8Array.from(chunk, (x) => x.charCodeAt(0))),
     { type: "application/pdf" }
   );
-  let end = Date.now();
-  console.log(end);
-  console.log(end - start);
 
   // download the pdf
   const a = document.createElement("a");
