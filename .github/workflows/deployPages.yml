@@ -36,6 +36,8 @@ jobs:
         uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install
+      - name: Patch for downloads
+        run: bunx patch-package
       - name: Build
         run: bun run build
       - name: Setup Pages
