@@ -8,6 +8,8 @@ Use left arrow / up arrow to go back a slide, and right arrow / space / enter to
 
 This uses pdf.js to render the presentation, and jspdf to create a new downloadable pdf.
 
+A live version can be found [here](https://spelunx.github.io/CAVERN-Presenter/)
+
 ## Install
 Using npm, run `npm install`
 
